@@ -116,69 +116,68 @@ if __name__ == "__main__":
     column_names = ["Disease ", "Rx", "Accuracy"]
     result = pd.DataFrame(columns=column_names)
 
-    # for i in range(10, 60, 10):
-    #     for j in range(10, 60, 10):
-    i = 10
-    j = 10
-    data, drug_list = reshape_data(dog_disease_drug_data, i, j)
+     for i in range(10, 60, 10):
+         for j in range(10, 60, 10):
+
+            data, drug_list = reshape_data(dog_disease_drug_data, i, j)
 
 
-    data = spark.createDataFrame(data)
+            data = spark.createDataFrame(data)
 
-    # print(data.limit(5).toPandas())
+            # print(data.limit(5).toPandas())
 
-    data_columns = data.columns[2:]
+            data_columns = data.columns[2:]
 
-    # print(data.printSchema)
+            # print(data.printSchema)
 
-    from pyspark.ml.feature import VectorAssembler
+            from pyspark.ml.feature import VectorAssembler
 
-    assembler = VectorAssembler() \
-        .setInputCols(data_columns) \
-        .setOutputCol("features")
+            assembler = VectorAssembler() \
+                .setInputCols(data_columns) \
+                .setOutputCol("features")
 
-    dataToVec = assembler.transform(data)
+            dataToVec = assembler.transform(data)
 
-    # print(train_mod01.limit(2).toPandas())
+            # print(train_mod01.limit(2).toPandas())
 
-    train = dataToVec.select("features", "dx_factorize")
+            train = dataToVec.select("features", "dx_factorize")
 
-    # print(train_mod02.limit(2).toPandas())
+            # print(train_mod02.limit(2).toPandas())
 
-    from pyspark.ml.classification import RandomForestClassifier, RandomForestClassificationModel
+            from pyspark.ml.classification import RandomForestClassifier, RandomForestClassificationModel
 
-    rfClassifer = RandomForestClassifier(labelCol="dx_factorize", numTrees=100)
+            rfClassifer = RandomForestClassifier(labelCol="dx_factorize", numTrees=100)
 
-    from pyspark.ml import Pipeline
+            from pyspark.ml import Pipeline
 
-    pipeline = Pipeline(stages=[rfClassifer])
+            pipeline = Pipeline(stages=[rfClassifer])
 
-    from pyspark.ml.tuning import CrossValidator, ParamGridBuilder
-    from pyspark.ml.evaluation import MulticlassClassificationEvaluator
+            from pyspark.ml.tuning import CrossValidator, ParamGridBuilder
+            from pyspark.ml.evaluation import MulticlassClassificationEvaluator
 
-    paramGrid = ParamGridBuilder() \
-        .addGrid(rfClassifer.maxDepth, [12]) \
-        .addGrid(rfClassifer.minInstancesPerNode, [20]) \
-        .build()
-
-
-    evaluator = MulticlassClassificationEvaluator(labelCol="dx_factorize", predictionCol="prediction",
-                                                  metricName="accuracy")
-    # evaluator_f1 = MulticlassClassificationEvaluator(labelCol="dx_factorize", predictionCol="prediction",
-    #                                               metricName="f1")
+            paramGrid = ParamGridBuilder() \
+                .addGrid(rfClassifer.maxDepth, [12]) \
+                .addGrid(rfClassifer.minInstancesPerNode, [20]) \
+                .build()
 
 
-    crossval= CrossValidator(estimator=pipeline,
-                              estimatorParamMaps=paramGrid,
-                              evaluator=evaluator,
-                              numFolds=5)
+            evaluator = MulticlassClassificationEvaluator(labelCol="dx_factorize", predictionCol="prediction",
+                                                          metricName="accuracy")
+            # evaluator_f1 = MulticlassClassificationEvaluator(labelCol="dx_factorize", predictionCol="prediction",
+            #                                               metricName="f1")
 
-    cvModel = crossval.fit(train)
 
-    print(i , j , cvModel.avgMetrics)
+            crossval= CrossValidator(estimator=pipeline,
+                                      estimatorParamMaps=paramGrid,
+                                      evaluator=evaluator,
+                                      numFolds=5)
 
-    newlist = [i , j , cvModel.avgMetrics]
-    result.loc[len(result)] = newlist
+            cvModel = crossval.fit(train)
+
+            print(i , j , cvModel.avgMetrics)
+
+            newlist = [i , j , cvModel.avgMetrics]
+            result.loc[len(result)] = newlist
 
 
     result.to_csv('RxDx_D_RF_acc.csv', encoding='CP949' , index= False)
